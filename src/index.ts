@@ -11,6 +11,8 @@ async function main(): Promise<void> {
   loadConfig();
 
   const app = express();
+  // Necessario dietro proxy (Render, Cloudflare): rate-limit usa X-Forwarded-For
+  app.set('trust proxy', 1);
   app.use(express.json({ limit: '100kb' }));
   app.use(express.urlencoded({ extended: true, limit: '100kb' }));
   app.use(requestLogger);
