@@ -1,24 +1,14 @@
 import 'dotenv/config';
 import express from 'express';
 import { loadConfig, getConfig } from './config';
-import { getPool, closePool } from './db/client';
 import routes from './routes';
 import { requestLogger } from './middleware/requestLogger';
 import { errorHandler } from './middleware/errorHandler';
-import { scheduleImportJob, stopImportJob } from './jobs/cronImportJob';
 import { logger } from './utils/logger';
 
 async function main(): Promise<void> {
+  // Carichiamo solo la config base (porta, env); il DB è disattivato in questa fase.
   loadConfig();
-
-  const pool = getPool();
-  try {
-    await pool.query('SELECT 1');
-    logger.info('Database connected');
-  } catch (err) {
-    logger.fatal({ err }, 'Failed to connect to database');
-    process.exit(1);
-  }
 
   const app = express();
   app.use(express.json({ limit: '100kb' }));
@@ -29,17 +19,12 @@ async function main(): Promise<void> {
 
   const port = getConfig().PORT;
   const server = app.listen(port, () => {
-    logger.info({ port }, 'Server started');
+    logger.info({ port }, 'Server started (DB disabilitato, solo webhook Gestim test attivo)');
   });
-
-  // [STACCATO] Cron import giornaliero - riattivare quando si ripristina la funzionalità
-  // scheduleImportJob();
 
   const shutdown = async (): Promise<void> => {
     logger.info('Shutting down...');
-    // stopImportJob();
     server.close();
-    await closePool();
     process.exit(0);
   };
 

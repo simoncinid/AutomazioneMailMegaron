@@ -1,6 +1,5 @@
 import { Request, Response } from 'express';
 import { detectZipUrl } from '../utils/detectZipUrl';
-import * as callbackRepository from '../repositories/callbackRepository';
 import { logger } from '../utils/logger';
 
 function sanitizeHeaders(headers: Record<string, unknown>): Record<string, unknown> {
@@ -21,63 +20,32 @@ export async function handleTestWebhook(req: Request, res: Response): Promise<vo
   const headers = sanitizeHeaders(req.headers as unknown as Record<string, unknown>);
   const queryJson = { ...query };
 
-  const callback = await callbackRepository.createCallback({
-    method: req.method,
-    headersJson: headers,
-    queryJson,
-    rawUrl,
-    zipUrl,
-    status: 'received',
-    notes: zipUrl ? null : 'No ZIP URL detected in query',
-  });
-
-  // Log dettagliato di tutto ciò che arriva dalla GET (per test Gestim)
+  // Nessun DB: logghiamo solo quello che arriva da Gestim
   logger.info(
     {
-      callbackId: callback.id,
       method: req.method,
       rawUrl,
       query: queryJson,
-      headers: headers,
+      headers,
       detected_zip_url: zipUrl,
       hasZipUrl: !!zipUrl,
     },
-    '[GESTIM TEST] Webhook GET ricevuto'
+    '[GESTIM TEST] Webhook GET ricevuto (solo log, DB disabilitato)'
   );
 
   res.status(200).json({
     ok: true,
     received: true,
     detected_zip_url: zipUrl ?? null,
-    stored_callback_id: callback.id,
+    stored_callback_id: null,
     timestamp: new Date().toISOString(),
   });
 }
 
 export async function getLatestDebug(req: Request, res: Response): Promise<void> {
-  const latest = await callbackRepository.getLatest();
-  if (!latest) {
-    res.status(404).json({
-      ok: false,
-      error: 'No callbacks received yet',
-    });
-    return;
-  }
-
-  const zipUrl = detectZipUrl(latest.query_json as Record<string, unknown>);
-
-  res.status(200).json({
-    ok: true,
-    callback: {
-      id: latest.id,
-      received_at: latest.received_at,
-      method: latest.method,
-      query_json: latest.query_json,
-      raw_url: latest.raw_url,
-      detected_zip_url: zipUrl ?? latest.zip_url,
-      status: latest.status,
-      notes: latest.notes,
-      created_at: latest.created_at,
-    },
+  // Con il DB disattivato non abbiamo storico: endpoint solo informativo
+  res.status(501).json({
+    ok: false,
+    error: 'Storico callback disabilitato: DB non connesso in modalità test.',
   });
 }

@@ -4,11 +4,12 @@ import path from 'path';
 const envSchema = z.object({
   PORT: z.string().default('3000').transform(Number),
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
-  DATABASE_HOST: z.string().min(1),
-  DATABASE_PORT: z.string().default('5432').transform(Number),
-  DATABASE_NAME: z.string().min(1),
-  DATABASE_USER: z.string().min(1),
-  DATABASE_PASSWORD: z.string().min(1),
+  // In modalità solo-webhook il DB è facoltativo: questi campi possono mancare.
+  DATABASE_HOST: z.string().optional().default(''),
+  DATABASE_PORT: z.string().optional().default('5432').transform(Number),
+  DATABASE_NAME: z.string().optional().default(''),
+  DATABASE_USER: z.string().optional().default(''),
+  DATABASE_PASSWORD: z.string().optional().default(''),
   DATABASE_SSL: z
     .string()
     .optional()
@@ -16,7 +17,8 @@ const envSchema = z.object({
   CA_FILE: z.string().optional(),
   APP_BASE_URL: z.string().url().optional(),
   CRON_IMPORT_SCHEDULE: z.string().default('0 3 * * *'),
-  MANUAL_IMPORT_TOKEN: z.string().min(1),
+  // Token admin opzionale: gli endpoint admin sono staccati in questa fase.
+  MANUAL_IMPORT_TOKEN: z.string().optional().default(''),
 });
 
 export type Config = z.infer<typeof envSchema>;
