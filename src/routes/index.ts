@@ -16,9 +16,6 @@ router.get('/health', (_, res) => {
   });
 });
 
-// [STACCATO] API ricerca listing - riattivare quando si ripristina la funzionalità
-// router.get('/api/gestim/listings/:externalListingId', listingController.getListingByExternalId);
-
 const webhookLimiter = rateLimit({
   windowMs: 60 * 1000,
   max: 60,
@@ -30,9 +27,12 @@ const webhookLimiter = rateLimit({
 router.get('/webhooks/gestim/test', webhookLimiter, webhookController.handleTestWebhook);
 router.get('/webhooks/gestim/test/debug/latest', webhookController.getLatestDebug);
 
-// [STACCATO] Admin import - riattivare quando si ripristina la funzionalità
-// router.post('/admin/gestim/import/latest', authAdmin, adminController.triggerImportLatest);
-// router.post('/admin/gestim/import/by-callback/:callbackId', authAdmin, adminController.triggerImportByCallback);
-// router.get('/admin/gestim/import-runs/latest', authAdmin, adminController.getLatestImportRun);
+// Admin endpoints (protetti da token) per orchestrare l'import Gestim
+router.post('/admin/gestim/import/latest', authAdmin, adminController.triggerImportLatest);
+router.post('/admin/gestim/import/by-callback/:callbackId', authAdmin, adminController.triggerImportByCallback);
+router.get('/admin/gestim/import-runs/latest', authAdmin, adminController.getLatestImportRun);
+
+// Endpoint di ricerca listing per automazione email
+router.get('/api/gestim/listings/:externalListingId', listingController.getListingByExternalId);
 
 export default router;

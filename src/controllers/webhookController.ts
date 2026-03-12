@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { detectZipUrl } from '../utils/detectZipUrl';
 import { logger } from '../utils/logger';
+import * as callbackRepository from '../repositories/callbackRepository';
 
 function sanitizeHeaders(headers: Record<string, unknown>): Record<string, unknown> {
   const sanitized: Record<string, unknown> = {};
@@ -20,9 +21,17 @@ export async function handleTestWebhook(req: Request, res: Response): Promise<vo
   const headers = sanitizeHeaders(req.headers as unknown as Record<string, unknown>);
   const queryJson = { ...query };
 
-  // Nessun DB: logghiamo solo quello che arriva da Gestim
+  const callback = await callbackRepository.createCallback({
+    method: req.method,
+    headersJson: headers,
+    queryJson,
+    rawUrl,
+    zipUrl: zipUrl ?? null,
+  });
+
   logger.info(
     {
+      callbackId: callback.id,
       method: req.method,
       rawUrl,
       query: queryJson,
@@ -30,22 +39,41 @@ export async function handleTestWebhook(req: Request, res: Response): Promise<vo
       detected_zip_url: zipUrl,
       hasZipUrl: !!zipUrl,
     },
-    '[GESTIM TEST] Webhook GET ricevuto (solo log, DB disabilitato)'
+    '[GESTIM TEST] Webhook GET ricevuto e salvato nel DB'
   );
 
   res.status(200).json({
     ok: true,
     received: true,
     detected_zip_url: zipUrl ?? null,
-    stored_callback_id: null,
+    stored_callback_id: callback.id,
     timestamp: new Date().toISOString(),
   });
 }
 
 export async function getLatestDebug(req: Request, res: Response): Promise<void> {
-  // Con il DB disattivato non abbiamo storico: endpoint solo informativo
-  res.status(501).json({
-    ok: false,
-    error: 'Storico callback disabilitato: DB non connesso in modalità test.',
+  const latest = await callbackRepository.getLatest();
+
+  if (!latest) {
+    res.status(404).json({
+      ok: false,
+      error: 'Nessun callback Gestim ricevuto finora.',
+    });
+    return;
+  }
+
+  res.status(200).json({
+    ok: true,
+    callback: {
+      id: latest.id,
+      received_at: latest.received_at,
+      method: latest.method,
+      raw_url: latest.raw_url,
+      zip_url: latest.zip_url,
+      status: latest.status,
+      notes: latest.notes,
+      headers_json: latest.headers_json,
+      query_json: latest.query_json,
+    },
   });
 }

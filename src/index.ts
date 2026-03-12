@@ -5,13 +5,12 @@ import routes from './routes';
 import { requestLogger } from './middleware/requestLogger';
 import { errorHandler } from './middleware/errorHandler';
 import { logger } from './utils/logger';
+import { scheduleImportJob } from './jobs/cronImportJob';
 
 async function main(): Promise<void> {
-  // Carichiamo solo la config base (porta, env); il DB è disattivato in questa fase.
   loadConfig();
 
   const app = express();
-  // Necessario dietro proxy (Render, Cloudflare): rate-limit usa X-Forwarded-For
   app.set('trust proxy', 1);
   app.use(express.json({ limit: '100kb' }));
   app.use(express.urlencoded({ extended: true, limit: '100kb' }));
@@ -21,7 +20,9 @@ async function main(): Promise<void> {
 
   const port = getConfig().PORT;
   const server = app.listen(port, () => {
-    logger.info({ port }, 'Server started (DB disabilitato, solo webhook Gestim test attivo)');
+    logger.info({ port }, 'Server started');
+    // Avvia il cron job per import automatici se configurato
+    scheduleImportJob();
   });
 
   const shutdown = async (): Promise<void> => {
