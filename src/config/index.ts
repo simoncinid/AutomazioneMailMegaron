@@ -3,14 +3,15 @@ import { z } from 'zod';
 /** Allinea variabili Render/hosting (DB_*, TLS_CERT) con i nomi usati dal codice. */
 function mergeDatabaseEnv(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
   const out: NodeJS.ProcessEnv = { ...env };
-  if (!out.DATABASE_HOST && out.DB_HOST) out.DATABASE_HOST = out.DB_HOST;
-  if (!out.DATABASE_PORT && out.DB_PORT) out.DATABASE_PORT = out.DB_PORT;
-  if (!out.DATABASE_NAME && out.DB_NAME) out.DATABASE_NAME = out.DB_NAME;
+  // Se DB_* è valorizzato, ha sempre priorità su DATABASE_* (Render spesso imposta DATABASE_HOST=localhost nei template).
+  if (out.DB_HOST) out.DATABASE_HOST = out.DB_HOST;
+  if (out.DB_PORT) out.DATABASE_PORT = out.DB_PORT;
+  if (out.DB_NAME) out.DATABASE_NAME = out.DB_NAME;
+  if (out.DB_USER) out.DATABASE_USER = out.DB_USER;
+  if (out.DB_PASSWORD) out.DATABASE_PASSWORD = out.DB_PASSWORD;
   if (!out.DATABASE_NAME && out.PGDATABASE) out.DATABASE_NAME = out.PGDATABASE;
-  if (!out.DATABASE_USER && out.DB_USER) out.DATABASE_USER = out.DB_USER;
-  if (!out.DATABASE_PASSWORD && out.DB_PASSWORD) out.DATABASE_PASSWORD = out.DB_PASSWORD;
-  if (!out.CA_FILE && out.TLS_CERT) out.CA_FILE = out.TLS_CERT;
-  if (!out.TLS_SERVERNAME && out.DB_TLS_SERVERNAME) out.TLS_SERVERNAME = out.DB_TLS_SERVERNAME;
+  if (out.TLS_CERT) out.CA_FILE = out.TLS_CERT;
+  if (out.DB_TLS_SERVERNAME) out.TLS_SERVERNAME = out.DB_TLS_SERVERNAME;
   if (out.DATABASE_SSL === undefined && out.DB_SSL !== undefined) {
     out.DATABASE_SSL = out.DB_SSL;
   }
