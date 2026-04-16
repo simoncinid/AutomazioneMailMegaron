@@ -1,4 +1,5 @@
 import net from 'net';
+import tls from 'tls';
 import { Pool, PoolConfig } from 'pg';
 import type { ConnectionOptions } from 'tls';
 import { getConfig } from '../config';
@@ -84,9 +85,9 @@ export function getPool(): Pool {
       if (sn) {
         sslOpts.servername = sn;
       } else if (net.isIP(host) !== 0) {
-        // node-pg non imposta servername se host è un IP → TLS può verificare il cert come "localhost".
-        // Allinea la verifica al SAN iPAddress / DNS del certificato server.
-        sslOpts.servername = host;
+        // Node vieta servername = IP. node-pg con host IP non imposta SNI → verifica cert esplicita su SAN iPAddress.
+        sslOpts.checkServerIdentity = (_servername: string, cert: tls.PeerCertificate) =>
+          tls.checkServerIdentity(host, cert);
       }
       poolConfig.ssl = sslOpts;
     }
