@@ -4,21 +4,28 @@ import { loadConfig } from '../config';
 import { getPool, closePool } from './client';
 import { logger } from '../utils/logger';
 
+/** Rimuove commenti `--` e righe vuote in testa a uno statement (dopo split su `;`). */
+function stripLeadingSqlComments(block: string): string {
+  const lines = block.split('\n');
+  const out: string[] = [];
+  let started = false;
+  for (const line of lines) {
+    const t = line.trim();
+    if (!started && (t === '' || t.startsWith('--'))) continue;
+    started = true;
+    out.push(line);
+  }
+  return out.join('\n').trim();
+}
+
 async function run(): Promise<void> {
   loadConfig();
   const sqlPath = path.join(__dirname, '../../migrations/001_initial_schema.sql');
   const sql = await readFile(sqlPath, 'utf-8');
   const statements = sql
     .split(';')
-    .map((s) => s.trim())
-    .filter((s) => {
-      if (!s) return false;
-      const firstLine = s
-        .split('\n')
-        .map((l) => l.trim())
-        .find((l) => l.length > 0);
-      return firstLine && !firstLine.startsWith('--');
-    });
+    .map((s) => stripLeadingSqlComments(s.trim()))
+    .filter((s) => s.length > 0);
 
   const pool = getPool();
   logger.info({ statements: statements.length }, 'Running DB migrations');
