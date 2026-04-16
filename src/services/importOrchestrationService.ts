@@ -28,7 +28,7 @@ import type { ListingInsertRow } from '../repositories/listingRepository';
 export interface ImportInput {
   zipUrl: string;
   callbackId?: number | null;
-  importType: 'manual' | 'cron';
+  importType: 'manual' | 'cron' | 'webhook';
 }
 
 export interface ImportResult {

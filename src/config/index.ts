@@ -1,5 +1,20 @@
 import { z } from 'zod';
-import path from 'path';
+
+/** Allinea variabili Render/hosting (DB_*, TLS_CERT) con i nomi usati dal codice. */
+function mergeDatabaseEnv(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
+  const out: NodeJS.ProcessEnv = { ...env };
+  if (!out.DATABASE_HOST && out.DB_HOST) out.DATABASE_HOST = out.DB_HOST;
+  if (!out.DATABASE_PORT && out.DB_PORT) out.DATABASE_PORT = out.DB_PORT;
+  if (!out.DATABASE_NAME && out.DB_NAME) out.DATABASE_NAME = out.DB_NAME;
+  if (!out.DATABASE_NAME && out.PGDATABASE) out.DATABASE_NAME = out.PGDATABASE;
+  if (!out.DATABASE_USER && out.DB_USER) out.DATABASE_USER = out.DB_USER;
+  if (!out.DATABASE_PASSWORD && out.DB_PASSWORD) out.DATABASE_PASSWORD = out.DB_PASSWORD;
+  if (!out.CA_FILE && out.TLS_CERT) out.CA_FILE = out.TLS_CERT;
+  if (out.DATABASE_SSL === undefined && (out.TLS_CERT || out.CA_FILE)) {
+    out.DATABASE_SSL = 'true';
+  }
+  return out;
+}
 
 const envSchema = z.object({
   PORT: z.string().default('3000').transform(Number),
@@ -28,7 +43,7 @@ let config: Config | null = null;
 export function loadConfig(): Config {
   if (config) return config;
 
-  const result = envSchema.safeParse(process.env);
+  const result = envSchema.safeParse(mergeDatabaseEnv(process.env));
   if (!result.success) {
     const messages = result.error.errors.map((e) => `${e.path.join('.')}: ${e.message}`).join('\n');
     throw new Error(`Config validation failed:\n${messages}`);

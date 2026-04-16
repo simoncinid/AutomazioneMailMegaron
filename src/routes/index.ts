@@ -27,6 +27,10 @@ const webhookLimiter = rateLimit({
 router.get('/webhooks/gestim/test', webhookLimiter, webhookController.handleTestWebhook);
 router.get('/webhooks/gestim/test/debug/latest', webhookController.getLatestDebug);
 
+// Produzione: stesso comportamento di /test + import immediato nel DB
+router.get('/webhooks/gestim', webhookLimiter, webhookController.handleProductionWebhook);
+router.post('/webhooks/gestim', webhookLimiter, webhookController.handleProductionWebhook);
+
 // Admin endpoints (protetti da token) per orchestrare l'import Gestim
 router.post('/admin/gestim/import/latest', authAdmin, adminController.triggerImportLatest);
 router.post('/admin/gestim/import/by-callback/:callbackId', authAdmin, adminController.triggerImportByCallback);
