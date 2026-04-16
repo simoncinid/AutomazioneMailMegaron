@@ -1,3 +1,4 @@
+import net from 'net';
 import { Pool, PoolConfig } from 'pg';
 import type { ConnectionOptions } from 'tls';
 import { getConfig } from '../config';
@@ -42,6 +43,11 @@ export function getPool(): Pool {
   if (!pool) {
     const config = getConfig();
     const host = resolveDatabaseHost(config);
+    if (!host.trim()) {
+      throw new Error(
+        'DATABASE_HOST / DB_HOST mancante o vuoto. node-pg in quel caso usa PGHOST o localhost. Imposta DB_HOST (es. IP Scaleway o hostname rw-….rdb.fr-par.scw.cloud).'
+      );
+    }
     assertProductionSslHost(host, config.DATABASE_SSL);
 
     if (process.env.NODE_ENV === 'production') {
@@ -74,8 +80,13 @@ export function getPool(): Pool {
       if (config.CA_FILE) {
         sslOpts.ca = config.CA_FILE;
       }
-      if (config.TLS_SERVERNAME) {
-        sslOpts.servername = config.TLS_SERVERNAME;
+      const sn = config.TLS_SERVERNAME?.trim();
+      if (sn) {
+        sslOpts.servername = sn;
+      } else if (net.isIP(host) !== 0) {
+        // node-pg non imposta servername se host è un IP → TLS può verificare il cert come "localhost".
+        // Allinea la verifica al SAN iPAddress / DNS del certificato server.
+        sslOpts.servername = host;
       }
       poolConfig.ssl = sslOpts;
     }
