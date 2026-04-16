@@ -10,6 +10,7 @@ function mergeDatabaseEnv(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
   if (!out.DATABASE_USER && out.DB_USER) out.DATABASE_USER = out.DB_USER;
   if (!out.DATABASE_PASSWORD && out.DB_PASSWORD) out.DATABASE_PASSWORD = out.DB_PASSWORD;
   if (!out.CA_FILE && out.TLS_CERT) out.CA_FILE = out.TLS_CERT;
+  if (!out.TLS_SERVERNAME && out.DB_TLS_SERVERNAME) out.TLS_SERVERNAME = out.DB_TLS_SERVERNAME;
   if (out.DATABASE_SSL === undefined && (out.TLS_CERT || out.CA_FILE)) {
     out.DATABASE_SSL = 'true';
   }
@@ -30,6 +31,8 @@ const envSchema = z.object({
     .optional()
     .transform((v) => v === 'true' || v === '1'),
   CA_FILE: z.string().optional(),
+  /** SNI / verifica cert: hostname atteso (es. *.rdb.fr-par.scw.cloud) se DB_HOST è un IP. */
+  TLS_SERVERNAME: z.string().optional().default(''),
   APP_BASE_URL: z.string().url().optional(),
   CRON_IMPORT_SCHEDULE: z.string().default('0 3 * * *'),
   // Token admin opzionale: gli endpoint admin sono staccati in questa fase.
