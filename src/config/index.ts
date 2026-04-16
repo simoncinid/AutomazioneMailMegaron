@@ -11,6 +11,9 @@ function mergeDatabaseEnv(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
   if (!out.DATABASE_PASSWORD && out.DB_PASSWORD) out.DATABASE_PASSWORD = out.DB_PASSWORD;
   if (!out.CA_FILE && out.TLS_CERT) out.CA_FILE = out.TLS_CERT;
   if (!out.TLS_SERVERNAME && out.DB_TLS_SERVERNAME) out.TLS_SERVERNAME = out.DB_TLS_SERVERNAME;
+  if (out.DATABASE_SSL === undefined && out.DB_SSL !== undefined) {
+    out.DATABASE_SSL = out.DB_SSL;
+  }
   if (out.DATABASE_SSL === undefined && (out.TLS_CERT || out.CA_FILE)) {
     out.DATABASE_SSL = 'true';
   }
