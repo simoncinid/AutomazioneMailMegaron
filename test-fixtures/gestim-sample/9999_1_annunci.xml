@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<export>
+  <annunci>
+    <annuncio>
+      <id>E2E-TEST-999001</id>
+      <titolo>Annuncio di test import automatico</titolo>
+      <citta>Roma</citta>
+      <prezzo>123456</prezzo>
+      <zona>Prati</zona>
+    </annuncio>
+  </annunci>
+</export>
