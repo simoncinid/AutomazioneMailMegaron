@@ -9,6 +9,7 @@ import { scheduleImportJob } from './jobs/cronImportJob';
 
 async function main(): Promise<void> {
   loadConfig();
+  const config = getConfig();
 
   const app = express();
   app.set('trust proxy', 1);
@@ -18,11 +19,14 @@ async function main(): Promise<void> {
   app.use(routes);
   app.use(errorHandler);
 
-  const port = getConfig().PORT;
+  const port = config.PORT;
   const server = app.listen(port, () => {
     logger.info({ port }, 'Server started');
-    // Avvia il cron job per import automatici se configurato
-    scheduleImportJob();
+    if (config.CRON_IMPORT_ENABLED) {
+      scheduleImportJob();
+    } else {
+      logger.info('Cron import disabled; webhook mode only');
+    }
   });
 
   const shutdown = async (): Promise<void> => {

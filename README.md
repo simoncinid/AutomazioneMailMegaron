@@ -1,6 +1,6 @@
 # Gestim XML Integration
 
-Backend service per l'integrazione con Gestim. Riceve webhook con URL ZIP, scarica ed estrae XML, e mantiene un database locale ricercabile dei listing immobiliari.
+Backend service per l'integrazione con Gestim. Riceve webhook con URL ZIP, scarica ed estrae XML, e mantiene un database locale ricercabile dei listing immobiliari. Il comportamento predefinito e' solo webhook: l'import parte quando Gestim invia il callback.
 
 ## Requisiti
 
@@ -31,7 +31,8 @@ npm run dev
 | DATABASE_SSL | Abilita SSL (true/false) | - |
 | CA_FILE | Certificato CA per SSL DB (contenuto PEM) | - |
 | APP_BASE_URL | URL base dell'app (opzionale) | - |
-| CRON_IMPORT_SCHEDULE | Espressione cron per import giornaliero | 0 3 * * * |
+| CRON_IMPORT_ENABLED | Abilita il cron di re-import automatico | false |
+| CRON_IMPORT_SCHEDULE | Espressione cron usata solo se il cron e' abilitato | 0 3 * * * |
 | MANUAL_IMPORT_TOKEN | Token per endpoint admin | - |
 
 ## Deploy su Render
@@ -93,7 +94,7 @@ src/
   controllers/   - Handler HTTP
   services/      - Download ZIP, parsing XML, orchestrazione import
   repositories/  - Accesso DB
-  jobs/          - Cron job import giornaliero
+  jobs/          - Cron job opzionale per re-import automatico
   utils/         - Logger, detectZipUrl, parseGestimFilename, xmlHelpers
   middleware/    - Logging, error handling, auth
   types/         - Tipi TypeScript

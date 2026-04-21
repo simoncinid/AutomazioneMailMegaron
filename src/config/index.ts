@@ -38,6 +38,11 @@ const envSchema = z.object({
   /** SNI / verifica cert: hostname atteso (es. *.rdb.fr-par.scw.cloud) se DB_HOST è un IP. */
   TLS_SERVERNAME: z.string().optional().default(''),
   APP_BASE_URL: z.string().url().optional(),
+  CRON_IMPORT_ENABLED: z
+    .string()
+    .optional()
+    .default('false')
+    .transform((v) => v === 'true' || v === '1'),
   CRON_IMPORT_SCHEDULE: z.string().default('0 3 * * *'),
   // Token admin opzionale: gli endpoint admin sono staccati in questa fase.
   MANUAL_IMPORT_TOKEN: z.string().optional().default(''),
