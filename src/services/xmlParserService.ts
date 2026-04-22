@@ -58,6 +58,8 @@ function parseListingItem(
   importRunId: number
 ): {
   external_listing_id: string;
+  /** ID interno Gestim (tag XML `<id>` sotto `immobile`). */
+  id_annuncio_gestim: string | null;
   title: string | null;
   contract_type: string | null;
   property_type: string | null;
@@ -81,8 +83,11 @@ function parseListingItem(
     throw new Error('Listing missing external ID');
   }
 
+  const idAnnuncioGestim = toNullableString(extractField(item, ['id']));
+
   return {
     external_listing_id: externalId,
+    id_annuncio_gestim: idAnnuncioGestim,
     title: toNullableString(extractField(item, LISTING_TAG_MAPPINGS.title)),
     contract_type: toNullableString(extractField(item, LISTING_TAG_MAPPINGS.contractType)),
     property_type: toNullableString(extractField(item, LISTING_TAG_MAPPINGS.propertyType)),

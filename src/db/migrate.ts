@@ -1,4 +1,4 @@
-import { readFile } from 'fs/promises';
+import { readdir, readFile } from 'fs/promises';
 import path from 'path';
 import { loadConfig } from '../config';
 import { getPool, closePool } from './client';
@@ -20,22 +20,31 @@ function stripLeadingSqlComments(block: string): string {
 
 async function run(): Promise<void> {
   loadConfig();
-  const sqlPath = path.join(__dirname, '../../migrations/001_initial_schema.sql');
-  const sql = await readFile(sqlPath, 'utf-8');
-  const statements = sql
-    .split(';')
-    .map((s) => stripLeadingSqlComments(s.trim()))
-    .filter((s) => s.length > 0);
+  const migrationsDir = path.join(__dirname, '../../migrations');
+  const files = (await readdir(migrationsDir))
+    .filter((f) => f.endsWith('.sql'))
+    .sort();
 
   const pool = getPool();
-  logger.info({ statements: statements.length }, 'Running DB migrations');
-  for (let i = 0; i < statements.length; i++) {
-    const stmt = statements[i];
-    if (!stmt) continue;
-    await pool.query(stmt);
-    logger.debug({ index: i + 1, total: statements.length }, 'Migration statement applied');
+  let totalStatements = 0;
+  for (const file of files) {
+    const sqlPath = path.join(migrationsDir, file);
+    const sql = await readFile(sqlPath, 'utf-8');
+    const statements = sql
+      .split(';')
+      .map((s) => stripLeadingSqlComments(s.trim()))
+      .filter((s) => s.length > 0);
+
+    logger.info({ file, statements: statements.length }, 'Running migration file');
+    for (let i = 0; i < statements.length; i++) {
+      const stmt = statements[i];
+      if (!stmt) continue;
+      await pool.query(stmt);
+      totalStatements++;
+      logger.debug({ file, index: i + 1, total: statements.length }, 'Migration statement applied');
+    }
   }
-  logger.info('Migrations completed');
+  logger.info({ files: files.length, totalStatements }, 'Migrations completed');
   await closePool();
 }
 

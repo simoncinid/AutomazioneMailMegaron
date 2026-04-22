@@ -3,6 +3,7 @@ import type { GestimListing } from '../types';
 
 export interface ListingSearchResult {
   externalListingId: string;
+  idAnnuncioGestim: string | null;
   title: string | null;
   city: string | null;
   zone: string | null;
@@ -21,6 +22,7 @@ export interface ListingInsertRow {
   agency_code: string | null;
   site_code: string | null;
   external_listing_id: string;
+  id_annuncio_gestim: string | null;
   title: string | null;
   contract_type: string | null;
   property_type: string | null;
@@ -43,6 +45,7 @@ export async function findByExternalId(
   const pool = getPool();
   const result = await pool.query<{
     external_listing_id: string;
+    id_annuncio_gestim: string | null;
     title: string | null;
     city: string | null;
     zone: string | null;
@@ -55,7 +58,7 @@ export async function findByExternalId(
     bathrooms: number | null;
     updated_at: Date;
   }>(
-    `SELECT external_listing_id, title, city, zone, address, price, property_type, contract_type,
+    `SELECT external_listing_id, id_annuncio_gestim, title, city, zone, address, price, property_type, contract_type,
             surface_m2, bedrooms, bathrooms, updated_at
      FROM gestim_listings
      WHERE external_listing_id = $1
@@ -67,6 +70,7 @@ export async function findByExternalId(
   if (!row) return null;
   return {
     externalListingId: row.external_listing_id,
+    idAnnuncioGestim: row.id_annuncio_gestim,
     title: row.title,
     city: row.city,
     zone: row.zone,
@@ -100,7 +104,7 @@ export async function insertMany(rows: ListingInsertRow[]): Promise<number> {
   const placeholders: string[] = [];
   let i = 0;
   for (const row of rows) {
-    const cols = 18;
+    const cols = 19;
     const ps = Array.from({ length: cols }, () => `$${++i}`).join(', ');
     placeholders.push(`(${ps})`);
     values.push(
@@ -108,6 +112,7 @@ export async function insertMany(rows: ListingInsertRow[]): Promise<number> {
       row.agency_code,
       row.site_code,
       row.external_listing_id,
+      row.id_annuncio_gestim,
       row.title,
       row.contract_type,
       row.property_type,
@@ -125,7 +130,7 @@ export async function insertMany(rows: ListingInsertRow[]): Promise<number> {
     );
   }
   const sql = `INSERT INTO gestim_listings (
-    import_run_id, agency_code, site_code, external_listing_id, title, contract_type, property_type,
+    import_run_id, agency_code, site_code, external_listing_id, id_annuncio_gestim, title, contract_type, property_type,
     city, province, postal_code, address, zone, price, bedrooms, bathrooms, surface_m2, description, raw_json
   ) VALUES ${placeholders.join(', ')}`;
   const result = await pool.query(sql, values);

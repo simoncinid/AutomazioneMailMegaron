@@ -172,6 +172,7 @@ export async function runImport(input: ImportInput): Promise<ImportResult> {
             agency_code: parsed?.agencyCode ?? null,
             site_code: parsed?.siteCode ?? null,
             external_listing_id: raw.external_listing_id,
+            id_annuncio_gestim: raw.id_annuncio_gestim,
             title: raw.title,
             contract_type: contractType,
             property_type: propertyType,

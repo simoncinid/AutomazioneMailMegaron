@@ -50,6 +50,7 @@ export interface GestimListing {
   agency_code: string | null;
   site_code: string | null;
   external_listing_id: string;
+  id_annuncio_gestim: string | null;
   title: string | null;
   contract_type: string | null;
   property_type: string | null;

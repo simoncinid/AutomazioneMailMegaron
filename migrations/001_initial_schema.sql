@@ -82,6 +82,7 @@ CREATE TABLE IF NOT EXISTS gestim_listings (
   agency_code VARCHAR(50),
   site_code VARCHAR(50),
   external_listing_id VARCHAR(100) NOT NULL,
+  id_annuncio_gestim VARCHAR(100),
   title TEXT,
   contract_type VARCHAR(100),
   property_type VARCHAR(100),

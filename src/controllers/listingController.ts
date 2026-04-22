@@ -22,6 +22,7 @@ export async function getListingByExternalId(req: Request, res: Response): Promi
     ok: true,
     listing: {
       externalListingId: listing.externalListingId,
+      idAnnuncioGestim: listing.idAnnuncioGestim,
       title: listing.title,
       city: listing.city,
       zone: listing.zone,
