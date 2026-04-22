@@ -15,21 +15,33 @@ const parser = new XMLParser({
  * The exact tag names and structure may differ from the examples below.
  */
 const LISTING_TAG_MAPPINGS = {
-  externalId: ['id', 'annuncio_id', 'codice', 'codice_annuncio', 'listing_id'],
+  /** Gestim WEB: `<id>` numerico + `<Codice>` riferimento ufficio (es. 2010272) */
+  externalId: ['id', 'Codice', 'annuncio_id', 'codice', 'codice_annuncio', 'listing_id'],
   title: ['titolo', 'title', 'descrizione_breve'],
   contractType: ['tipo_contratto', 'contratto', 'contract_type'],
-  propertyType: ['tipo_immobile', 'tipologia', 'property_type'],
-  city: ['citta', 'comune', 'city', 'localita'],
-  province: ['provincia', 'province'],
-  postalCode: ['cap', 'postal_code', 'codice_postale'],
-  address: ['indirizzo', 'address', 'via'],
-  zone: ['zona', 'area', 'zone', 'quartiere', 'zona_affari'],
-  price: ['prezzo', 'price', 'valorizzato'],
-  bedrooms: ['camere', 'stanze', 'bedrooms', 'locali'],
+  propertyType: ['tipo_immobile', 'tipologia', 'property_type', 'Tipologia'],
+  city: ['citta', 'comune', 'Comune', 'city', 'localita'],
+  province: ['provincia', 'province', 'Provincia'],
+  postalCode: ['cap', 'postal_code', 'codice_postale', 'CAP'],
+  address: ['indirizzo', 'address', 'via', 'Indirizzo'],
+  zone: ['zona', 'area', 'zone', 'quartiere', 'zona_affari', 'frazione', 'Frazione'],
+  price: ['prezzo', 'price', 'valorizzato', 'Prezzo_Richiesto'],
+  bedrooms: ['camere', 'stanze', 'bedrooms', 'locali', 'Locali'],
   bathrooms: ['bagni', 'bathrooms'],
-  surface: ['superficie', 'mq', 'surface_m2', 'metratura'],
+  surface: ['superficie', 'mq', 'surface_m2', 'metratura', 'Totale_mq'],
   description: ['descrizione', 'description', 'testo'],
 };
+
+/** Radice documento: `<export>` (test) oppure `<import>` (Gestim WEB V-90+). */
+function listingDocumentRoot(parsed: Record<string, unknown>): Record<string, unknown> {
+  if (parsed && typeof parsed.export === 'object' && parsed.export !== null) {
+    return parsed.export as Record<string, unknown>;
+  }
+  if (parsed && typeof parsed.import === 'object' && parsed.import !== null) {
+    return parsed.import as Record<string, unknown>;
+  }
+  return parsed as Record<string, unknown>;
+}
 
 function extractField(obj: Record<string, unknown>, keys: string[]): unknown {
   for (const key of keys) {
@@ -94,6 +106,8 @@ function parseListingItem(
  */
 function findListingRoot(obj: Record<string, unknown>): unknown[] {
   const candidates = [
+    getNestedValue(obj, ['import', 'immobili', 'immobile']),
+    getNestedValue(obj, ['immobili', 'immobile']),
     getNestedValue(obj, ['annunci', 'annuncio']),
     getNestedValue(obj, ['annunci']),
     getNestedValue(obj, ['annuncio']),
@@ -122,8 +136,8 @@ export function parseListingsXml(
     throw new Error('Invalid XML: empty or not object');
   }
 
-  const root = typeof parsed.export === 'object' ? parsed.export : parsed;
-  const items = findListingRoot(root as Record<string, unknown>);
+  const root = listingDocumentRoot(parsed as Record<string, unknown>);
+  const items = findListingRoot(root);
   const results: Array<ReturnType<typeof parseListingItem>> = [];
 
   for (let i = 0; i < items.length; i++) {
