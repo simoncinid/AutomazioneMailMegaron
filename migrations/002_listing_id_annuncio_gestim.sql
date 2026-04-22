@@ -1,4 +1,4 @@
--- ID interno Gestim (tag XML <id> sotto <immobile>), distinto dal codice di riferimento (Codice).
+-- Riferimento annuncio Gestim (tag XML <Codice>), tipicamente 7–9 caratteri (non l'id numerico <id>).
 
 ALTER TABLE gestim_listings
   ADD COLUMN IF NOT EXISTS id_annuncio_gestim VARCHAR(100);

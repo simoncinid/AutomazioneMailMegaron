@@ -58,7 +58,7 @@ function parseListingItem(
   importRunId: number
 ): {
   external_listing_id: string;
-  /** ID interno Gestim (tag XML `<id>` sotto `immobile`). */
+  /** Riferimento annuncio Gestim (tag `<Codice>`, tipicamente 7–9 caratteri); non l'id numerico `<id>`. */
   id_annuncio_gestim: string | null;
   title: string | null;
   contract_type: string | null;
@@ -83,7 +83,9 @@ function parseListingItem(
     throw new Error('Listing missing external ID');
   }
 
-  const idAnnuncioGestim = toNullableString(extractField(item, ['id']));
+  const idAnnuncioGestim = toNullableString(
+    extractField(item, ['Codice', 'codice', 'codice_annuncio'])
+  );
 
   return {
     external_listing_id: externalId,

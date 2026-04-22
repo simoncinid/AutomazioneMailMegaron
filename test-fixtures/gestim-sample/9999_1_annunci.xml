@@ -3,6 +3,7 @@
   <annunci>
     <annuncio>
       <id>E2E-TEST-999001</id>
+      <Codice>E2E999001</Codice>
       <titolo>Annuncio di test import automatico</titolo>
       <citta>Roma</citta>
       <prezzo>123456</prezzo>
