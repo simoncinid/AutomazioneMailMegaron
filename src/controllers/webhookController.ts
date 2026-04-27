@@ -39,18 +39,7 @@ export async function handleTestWebhook(req: Request, res: Response): Promise<vo
     zipUrl: zipUrl ?? null,
   });
 
-  logger.info(
-    {
-      callbackId: callback.id,
-      method: req.method,
-      rawUrl,
-      query: queryJson,
-      headers,
-      detected_zip_url: zipUrl,
-      hasZipUrl: !!zipUrl,
-    },
-    '[GESTIM TEST] Webhook GET ricevuto e salvato nel DB'
-  );
+  logger.info(`[TEST] Webhook ricevuto (callback #${callback.id}, ZIP: ${zipUrl ? 'sì' : 'no'})`);
 
   res.status(200).json({
     ok: true,
@@ -72,13 +61,10 @@ export async function handleProductionWebhook(req: Request, res: Response): Prom
   const headers = sanitizeHeaders(req.headers as unknown as Record<string, unknown>);
   const queryJson = { ...query };
 
-  logger.info(
-    { method: req.method, rawUrl, hasZipUrl: !!zipUrl },
-    '[GESTIM PROD] Webhook ricevuto'
-  );
+  logger.info(`[PROD] Webhook ricevuto (${req.method}, ZIP: ${zipUrl ? 'sì' : 'no'})`);
 
   if (!zipUrl) {
-    logger.warn({ query: queryJson }, '[GESTIM PROD] Nessun URL ZIP rilevato');
+    logger.warn('[PROD] Nessun URL ZIP rilevato — niente import');
     res.status(400).json({
       ok: false,
       error:
@@ -96,10 +82,7 @@ export async function handleProductionWebhook(req: Request, res: Response): Prom
     zipUrl,
   });
 
-  logger.info(
-    { callbackId: callback.id, zipUrl: zipUrl.substring(0, 120) },
-    '[GESTIM PROD] Callback salvato, avvio import completo'
-  );
+  logger.info(`[PROD] Callback #${callback.id} salvato, avvio import`);
 
   const result = await runImport({
     zipUrl,
@@ -119,8 +102,7 @@ export async function handleProductionWebhook(req: Request, res: Response): Prom
 
   if (result.success) {
     logger.info(
-      { callbackId: callback.id, ...importPayload },
-      '[GESTIM PROD] Import completato'
+      `[PROD] Import #${result.importRunId} OK — ${result.inserted} nuovi, ${result.updated} aggiornati, ${result.unchanged} invariati`
     );
     res.status(200).json({
       ok: true,
@@ -133,10 +115,7 @@ export async function handleProductionWebhook(req: Request, res: Response): Prom
     return;
   }
 
-  logger.error(
-    { callbackId: callback.id, importRunId: result.importRunId, err: result.errorMessage },
-    '[GESTIM PROD] Import fallito (callback già salvato)'
-  );
+  logger.error(`[PROD] Import #${result.importRunId} FALLITO — ${result.errorMessage}`);
   res.status(502).json({
     ok: false,
     received: true,

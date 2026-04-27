@@ -14,7 +14,7 @@ export async function triggerImportLatest(req: Request, res: Response): Promise<
     return;
   }
 
-  logger.info({ callbackId: callback.id, zipUrl: callback.zip_url }, 'Manual import triggered');
+  logger.info(`[MANUAL] Import richiesto sul callback #${callback.id}`);
 
   const result = await runImport({
     zipUrl: callback.zip_url,
@@ -31,6 +31,9 @@ export async function triggerImportLatest(req: Request, res: Response): Promise<
       siteCode: result.siteCode,
       totalListingsFound: result.totalListingsFound,
       totalListingsImported: result.totalListingsImported,
+      inserted: result.inserted,
+      updated: result.updated,
+      unchanged: result.unchanged,
       errorMessage: result.errorMessage ?? undefined,
     },
   });
@@ -58,7 +61,7 @@ export async function triggerImportByCallback(req: Request, res: Response): Prom
     return;
   }
 
-  logger.info({ callbackId, zipUrl }, 'Manual import by callback triggered');
+  logger.info(`[MANUAL] Import richiesto sul callback #${callbackId}`);
 
   const result = await runImport({
     zipUrl,
@@ -75,6 +78,9 @@ export async function triggerImportByCallback(req: Request, res: Response): Prom
       siteCode: result.siteCode,
       totalListingsFound: result.totalListingsFound,
       totalListingsImported: result.totalListingsImported,
+      inserted: result.inserted,
+      updated: result.updated,
+      unchanged: result.unchanged,
       errorMessage: result.errorMessage ?? undefined,
     },
   });

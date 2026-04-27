@@ -35,20 +35,20 @@ async function run(): Promise<void> {
       .map((s) => stripLeadingSqlComments(s.trim()))
       .filter((s) => s.length > 0);
 
-    logger.info({ file, statements: statements.length }, 'Running migration file');
+    logger.info(`Migrazione: ${file} (${statements.length} statements)`);
     for (let i = 0; i < statements.length; i++) {
       const stmt = statements[i];
       if (!stmt) continue;
       await pool.query(stmt);
       totalStatements++;
-      logger.debug({ file, index: i + 1, total: statements.length }, 'Migration statement applied');
     }
   }
-  logger.info({ files: files.length, totalStatements }, 'Migrations completed');
+  logger.info(`Migrazioni completate: ${files.length} file, ${totalStatements} statements`);
   await closePool();
 }
 
 run().catch((err) => {
-  logger.error({ err }, 'Migration failed');
+  const msg = err instanceof Error ? err.message : String(err);
+  logger.error(`Migrazione fallita: ${msg}`);
   process.exit(1);
 });

@@ -15,11 +15,11 @@ export function scheduleImportJob(): void {
   }
 
   scheduledTask = cron.schedule(schedule, async () => {
-    logger.info('Cron import job started');
+    logger.info('Cron: avvio import periodico');
     try {
       const callback = await callbackRepository.getLatestWithZipUrl();
       if (!callback?.zip_url) {
-        logger.warn('No callback with ZIP URL available for cron import');
+        logger.warn('Cron: nessun callback con ZIP URL disponibile, salto');
         return;
       }
 
@@ -31,32 +31,24 @@ export function scheduleImportJob(): void {
 
       if (result.success) {
         logger.info(
-          {
-            importRunId: result.importRunId,
-            totalListingsImported: result.totalListingsImported,
-            agencyCode: result.agencyCode,
-            siteCode: result.siteCode,
-          },
-          'Cron import completed'
+          `Cron: import #${result.importRunId} OK — ${result.inserted} nuovi, ${result.updated} aggiornati, ${result.unchanged} invariati`
         );
       } else {
-        logger.error(
-          { importRunId: result.importRunId, errorMessage: result.errorMessage },
-          'Cron import failed'
-        );
+        logger.error(`Cron: import #${result.importRunId} FALLITO — ${result.errorMessage}`);
       }
     } catch (err) {
-      logger.error({ err }, 'Cron import job failed');
+      const msg = err instanceof Error ? err.message : String(err);
+      logger.error(`Cron: errore esecuzione job — ${msg}`);
     }
   });
 
-  logger.info({ schedule }, 'Cron import job scheduled');
+  logger.info(`Cron import schedulato (${schedule})`);
 }
 
 export function stopImportJob(): void {
   if (scheduledTask) {
     scheduledTask.stop();
     scheduledTask = null;
-    logger.info('Cron import job stopped');
+    logger.info('Cron import fermato');
   }
 }
