@@ -13,6 +13,14 @@ ALTER TABLE gestim_agents
 
 DROP INDEX IF EXISTS idx_gestim_listings_agency_site_external;
 
+-- Stesso schema dell'indice univoco sotto: elimina duplicati storici (mantieni la riga con id più alto).
+DELETE FROM gestim_listings a
+USING gestim_listings b
+WHERE a.id < b.id
+  AND COALESCE(a.agency_code, '') = COALESCE(b.agency_code, '')
+  AND COALESCE(a.site_code, '') = COALESCE(b.site_code, '')
+  AND COALESCE(a.id_annuncio_gestim, a.external_listing_id) = COALESCE(b.id_annuncio_gestim, b.external_listing_id);
+
 CREATE UNIQUE INDEX IF NOT EXISTS idx_gestim_listings_agency_site_match
   ON gestim_listings (
     COALESCE(agency_code, ''),

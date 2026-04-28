@@ -20,7 +20,9 @@ async function main(): Promise<void> {
   app.use(errorHandler);
 
   const port = config.PORT;
-  const server = app.listen(port, () => {
+  /** Render e altri PaaS espongono il traffico solo se si ascolta su tutte le interfacce. */
+  const host = process.env.HOST?.trim() || '0.0.0.0';
+  const server = app.listen(port, host, () => {
     logger.info({ port }, 'Server started');
     if (config.CRON_IMPORT_ENABLED) {
       scheduleImportJob();
