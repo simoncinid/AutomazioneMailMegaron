@@ -101,8 +101,8 @@ CREATE TABLE IF NOT EXISTS gestim_listings (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- Unique constraint: one active listing per agency/site/external_id (for full refresh)
-CREATE UNIQUE INDEX IF NOT EXISTS idx_gestim_listings_agency_site_external
+-- Indice non univoco: il vincolo univoco attuale è in 003 (match su id_annuncio_gestim / external_listing_id).
+CREATE INDEX IF NOT EXISTS idx_gestim_listings_agency_site_external
   ON gestim_listings (COALESCE(agency_code, ''), COALESCE(site_code, ''), external_listing_id);
 
 CREATE INDEX IF NOT EXISTS idx_gestim_listings_external_id ON gestim_listings(external_listing_id);
