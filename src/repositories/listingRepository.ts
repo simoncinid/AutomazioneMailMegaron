@@ -91,6 +91,11 @@ export function computeContentHash(row: ListingInsertRow): string {
   return h.digest('hex');
 }
 
+/**
+ * Ricerca annuncio per ID passato in URL/API.
+ * 1) match su external_listing_id (tag XML `<id>`, comportamento storico);
+ * 2) fallback su id_annuncio_gestim (tag `<Codice>`, es. 2018p094), case-insensitive.
+ */
 export async function findByExternalId(
   externalListingId: string
 ): Promise<ListingSearchResult | null> {
@@ -114,7 +119,8 @@ export async function findByExternalId(
             surface_m2, bedrooms, bathrooms, updated_at
      FROM gestim_listings
      WHERE external_listing_id = $1
-     ORDER BY updated_at DESC
+        OR lower(id_annuncio_gestim) = lower($1)
+     ORDER BY CASE WHEN external_listing_id = $1 THEN 0 ELSE 1 END, updated_at DESC
      LIMIT 1`,
     [externalListingId]
   );

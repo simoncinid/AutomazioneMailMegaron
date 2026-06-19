@@ -1,7 +1,6 @@
 import { XMLParser } from 'fast-xml-parser';
-import { ensureArray, getNestedValue, toNullableString, toNullableNumber } from '../utils/xmlHelpers';
+import { ensureArray, toNullableString, toNullableNumber } from '../utils/xmlHelpers';
 import { logger } from '../utils/logger';
-import type { ExtractedFile } from './extractionService';
 
 const parser = new XMLParser({
   ignoreAttributes: false,
@@ -32,20 +31,70 @@ const LISTING_TAG_MAPPINGS = {
   description: ['descrizione', 'description', 'testo'],
 };
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
+function normalizeXmlKey(key: string): string {
+  const withoutNs = key.includes(':') ? key.split(':').pop() ?? key : key;
+  return withoutNs.toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+function getFieldInsensitive(obj: Record<string, unknown>, keys: string[]): unknown {
+  const wanted = new Set(keys.map(normalizeXmlKey));
+  for (const [key, value] of Object.entries(obj)) {
+    if (wanted.has(normalizeXmlKey(key))) return value;
+  }
+  return undefined;
+}
+
+function getNestedInsensitive(root: Record<string, unknown>, path: string[]): unknown {
+  let current: unknown = root;
+  for (const segment of path) {
+    if (!isRecord(current)) return undefined;
+    current = getFieldInsensitive(current, [segment]);
+    if (current === undefined) return undefined;
+  }
+  return current;
+}
+
+function toObjectArray(value: unknown): Record<string, unknown>[] {
+  return ensureArray(value).filter(isRecord);
+}
+
+function findItemsWithParent(
+  root: Record<string, unknown>,
+  parentKeys: string[],
+  itemKeys: string[]
+): Record<string, unknown>[] {
+  const parent = getFieldInsensitive(root, parentKeys);
+  if (!parent) return [];
+  if (Array.isArray(parent)) return parent.filter(isRecord);
+  if (!isRecord(parent)) return [];
+  const direct = toObjectArray(getFieldInsensitive(parent, itemKeys));
+  if (direct.length > 0) return direct;
+  const fallback = toObjectArray(parent);
+  return fallback;
+}
+
 /** Radice documento: `<export>` (test) oppure `<import>` (Gestim WEB V-90+). */
 function listingDocumentRoot(parsed: Record<string, unknown>): Record<string, unknown> {
-  if (parsed && typeof parsed.export === 'object' && parsed.export !== null) {
-    return parsed.export as Record<string, unknown>;
+  const exportNode = getFieldInsensitive(parsed, ['export']);
+  if (isRecord(exportNode)) {
+    return exportNode;
   }
-  if (parsed && typeof parsed.import === 'object' && parsed.import !== null) {
-    return parsed.import as Record<string, unknown>;
+  const importNode = getFieldInsensitive(parsed, ['import']);
+  if (isRecord(importNode)) {
+    return importNode;
   }
-  return parsed as Record<string, unknown>;
+  return parsed;
 }
 
 function extractField(obj: Record<string, unknown>, keys: string[]): unknown {
+  const value = getFieldInsensitive(obj, keys);
+  if (value !== undefined && value !== null) return value;
   for (const key of keys) {
-    const val = getNestedValue(obj, [key]) ?? getNestedValue(obj, ['#text']);
+    const val = obj[key] ?? obj['#text'];
     if (val !== undefined && val !== null) return val;
   }
   return undefined;
@@ -112,22 +161,44 @@ function parseListingItem(
  * Common patterns: root.annunci.annuncio, root.annuncio, root.export.listing, etc.
  */
 function findListingRoot(obj: Record<string, unknown>): unknown[] {
-  const candidates = [
-    getNestedValue(obj, ['import', 'immobili', 'immobile']),
-    getNestedValue(obj, ['immobili', 'immobile']),
-    getNestedValue(obj, ['annunci', 'annuncio']),
-    getNestedValue(obj, ['annunci']),
-    getNestedValue(obj, ['annuncio']),
-    getNestedValue(obj, ['listings', 'listing']),
-    getNestedValue(obj, ['listing']),
-    getNestedValue(obj, ['export', 'annunci']),
-    getNestedValue(obj, ['root', 'annunci']),
-    Object.values(obj)[0],
+  const candidatePaths = [
+    ['import', 'immobili', 'immobile'],
+    ['immobili', 'immobile'],
+    ['annunci', 'annuncio'],
+    ['annunci', 'immobile'],
+    ['annuncio'],
+    ['immobile'],
+    ['listings', 'listing'],
+    ['listing'],
+    ['export', 'annunci', 'annuncio'],
+    ['root', 'annunci', 'annuncio'],
   ];
-  for (const c of candidates) {
-    const arr = ensureArray(c);
+
+  for (const p of candidatePaths) {
+    const arr = toObjectArray(getNestedInsensitive(obj, p));
     if (arr.length > 0) return arr;
   }
+
+  for (const parentKey of ['annunci', 'immobili', 'listings']) {
+    const parent = getFieldInsensitive(obj, [parentKey]);
+    if (!parent) continue;
+    if (Array.isArray(parent)) {
+      const arr = parent.filter(isRecord);
+      if (arr.length > 0) return arr;
+      continue;
+    }
+    if (!isRecord(parent)) continue;
+
+    const child = toObjectArray(getFieldInsensitive(parent, ['annuncio', 'immobile', 'listing', 'item']));
+    if (child.length > 0) return child;
+  }
+
+  const topLevelRecords = Object.values(obj).filter(isRecord);
+  for (const r of topLevelRecords) {
+    const child = toObjectArray(getFieldInsensitive(r, ['annuncio', 'immobile', 'listing', 'item']));
+    if (child.length > 0) return child;
+  }
+
   return [];
 }
 
@@ -185,7 +256,7 @@ export function parseLookupXml(
   const parsed = parser.parse(xmlStr);
   if (!parsed || typeof parsed !== 'object') return [];
 
-  const root = (typeof parsed.export === 'object' ? parsed.export : parsed) as Record<string, unknown>;
+  const root = listingDocumentRoot(parsed as Record<string, unknown>);
   const results: Array<{
     import_run_id: number;
     agency_code: string | null;
@@ -212,11 +283,9 @@ export function parseLookupXml(
       if (!item || typeof item !== 'object') continue;
       const obj = item as Record<string, unknown>;
       const key = String(
-        obj.id ?? obj.codice ?? obj.key ?? obj['@_id'] ?? obj['@_codice'] ?? obj['@_key'] ?? ''
+        extractField(obj, ['id', 'codice', 'key', '@_id', '@_codice', '@_key']) ?? ''
       ).trim();
-      const value = String(
-        obj.valore ?? obj.value ?? obj.descrizione ?? obj.label ?? obj.desc ?? obj['#text'] ?? ''
-      ).trim();
+      const value = String(extractField(obj, ['valore', 'value', 'descrizione', 'label', 'desc', '#text']) ?? '').trim();
       if (!key) continue;
       results.push({
         import_run_id: importRunId,
@@ -226,7 +295,7 @@ export function parseLookupXml(
         lookup_group: groupName,
         lookup_key: key,
         lookup_value: value || key,
-        language: toNullableString(obj.lingua ?? obj.lang ?? obj.language),
+        language: toNullableString(extractField(obj, ['lingua', 'lang', 'language'])),
         raw_json: obj,
       });
     }
@@ -257,11 +326,13 @@ export function parseAgenciesXml(
   const parsed = parser.parse(xmlStr);
   if (!parsed || typeof parsed !== 'object') return [];
 
-  const root = (typeof parsed.export === 'object' ? parsed.export : parsed) as Record<string, unknown>;
-  const items = ensureArray(
-    root.agenzia ?? root.agenzie ?? root.agency ?? root.agencies ?? root
-  );
-  const arr = Array.isArray(items) ? items : [items];
+  const root = listingDocumentRoot(parsed as Record<string, unknown>);
+  const arr = [
+    ...findItemsWithParent(root, ['agenzie', 'agencies'], ['agenzia', 'agency', 'item']),
+    ...toObjectArray(getFieldInsensitive(root, ['agenzia', 'agency'])),
+  ];
+  const uniqueItems = arr.length > 0 ? arr : [root];
+
   const results: Array<{
     import_run_id: number;
     agency_code: string | null;
@@ -274,18 +345,16 @@ export function parseAgenciesXml(
     raw_json: Record<string, unknown>;
   }> = [];
 
-  for (const item of arr) {
-    if (!item || typeof item !== 'object') continue;
-    const obj = item as Record<string, unknown>;
+  for (const obj of uniqueItems) {
     results.push({
       import_run_id: importRunId,
       agency_code: agencyCode,
       site_code: siteCode,
-      external_agency_id: toNullableString(obj.id ?? obj.codice ?? (obj as Record<string, unknown>)['@_id']),
-      name: toNullableString(obj.nome ?? obj.name ?? obj.ragione_sociale),
-      status: toNullableString(obj.stato ?? obj.status),
-      email: toNullableString(obj.email ?? obj.mail),
-      phone: toNullableString(obj.telefono ?? obj.phone ?? obj.tel),
+      external_agency_id: toNullableString(extractField(obj, ['id', 'codice', '@_id'])),
+      name: toNullableString(extractField(obj, ['nome', 'name', 'ragione_sociale'])),
+      status: toNullableString(extractField(obj, ['stato', 'status'])),
+      email: toNullableString(extractField(obj, ['email', 'mail'])),
+      phone: toNullableString(extractField(obj, ['telefono', 'phone', 'tel'])),
       raw_json: obj,
     });
   }
@@ -315,11 +384,13 @@ export function parseAgentsXml(
   const parsed = parser.parse(xmlStr);
   if (!parsed || typeof parsed !== 'object') return [];
 
-  const root = (typeof parsed.export === 'object' ? parsed.export : parsed) as Record<string, unknown>;
-  const items = ensureArray(
-    root.agente ?? root.agenti ?? root.agent ?? root.agents ?? root
-  );
-  const arr = Array.isArray(items) ? items : [items];
+  const root = listingDocumentRoot(parsed as Record<string, unknown>);
+  const arr = [
+    ...findItemsWithParent(root, ['agenti', 'agents'], ['agente', 'agent', 'item']),
+    ...toObjectArray(getFieldInsensitive(root, ['agente', 'agent'])),
+  ];
+  const uniqueItems = arr.length > 0 ? arr : [root];
+
   const results: Array<{
     import_run_id: number;
     agency_code: string | null;
@@ -332,18 +403,16 @@ export function parseAgentsXml(
     raw_json: Record<string, unknown>;
   }> = [];
 
-  for (const item of arr) {
-    if (!item || typeof item !== 'object') continue;
-    const obj = item as Record<string, unknown>;
+  for (const obj of uniqueItems) {
     results.push({
       import_run_id: importRunId,
       agency_code: agencyCode,
       site_code: siteCode,
-      external_agent_id: toNullableString(obj.id ?? obj.codice ?? (obj as Record<string, unknown>)['@_id']),
-      agency_external_id: toNullableString(obj.agenzia_id ?? obj.agency_id ?? obj.id_agenzia),
-      name: toNullableString(obj.nome ?? obj.name),
-      email: toNullableString(obj.email ?? obj.mail),
-      phone: toNullableString(obj.telefono ?? obj.phone ?? obj.tel),
+      external_agent_id: toNullableString(extractField(obj, ['id', 'codice', '@_id'])),
+      agency_external_id: toNullableString(extractField(obj, ['agenzia_id', 'agency_id', 'id_agenzia'])),
+      name: toNullableString(extractField(obj, ['nome', 'name'])),
+      email: toNullableString(extractField(obj, ['email', 'mail'])),
+      phone: toNullableString(extractField(obj, ['telefono', 'phone', 'tel'])),
       raw_json: obj,
     });
   }

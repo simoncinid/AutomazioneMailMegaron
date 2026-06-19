@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { detectZipUrl } from '../detectZipUrl';
 
 describe('detectZipUrl', () => {
-  it('returns URL from preferred key "callback"', () => {
+  it('returns URL from key "callback" when no better candidate exists', () => {
     expect(
       detectZipUrl({ callback: 'https://example.com/file.zip' })
     ).toBe('https://example.com/file.zip');
@@ -33,6 +33,15 @@ describe('detectZipUrl', () => {
         url: 'https://example.com/data.zip',
       })
     ).toBe('https://example.com/data.zip');
+  });
+
+  it('prefers Gestim feed URL over webhook callback URL', () => {
+    expect(
+      detectZipUrl({
+        callback: 'https://myapp.example.com/webhooks/gestim',
+        url: 'https://api.gestim.biz/feeds/sites/abcdef12345',
+      })
+    ).toBe('https://api.gestim.biz/feeds/sites/abcdef12345');
   });
 
   it('returns null when no URL in query', () => {
